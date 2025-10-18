@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 400px; margin: 0 auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        input[type="text"], input[type="email"], input[type="password"] { width: 100%; padding: 10px; margin: 5px 0 15px 0; display: inline-block; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background-color: #4CAF50; color: white; padding: 14px 20px; margin: 8px 0; border: none; cursor: pointer; width: 100%; }
+        button:hover { opacity: 0.8; }
+        #message { margin-top: 15px; padding: 10px; border-radius: 3px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Register Account</h2>
+    <div id="message"></div>
+    <form id="registerForm">
+        <label for="username"><b>Username</b></label>
+        <input type="text" placeholder="Enter Username" name="username" required>
+
+        <label for="email"><b>Email</b></label>
+        <input type="email" placeholder="Enter Email" name="email" required>
+
+        <label for="password"><b>Password</b></label>
+        <input type="password" placeholder="Enter Password" name="password" required>
+
+        <button type="submit">Register & Send OTP</button>
+    </form>
+    <p>Already have an account? <a href="login.html">Login</a></p>
+    <p>Received an OTP? <a href="verify-otp.html">Verify OTP</a></p>
+</div>
+
+<script>
+    document.getElementById('registerForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const messageDiv = document.getElementById('message');
+        messageDiv.textContent = '';
+        messageDiv.className = '';
+
+        const formData = {
+            username: this.username.value,
+            email: this.email.value,
+            password: this.password.value
+        };
+
+        try {
+            // **NOTE:** Replace 'http://localhost:5000' with your actual backend URL if different
+            const response = await fetch('api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                messageDiv.className = 'success';
+                messageDiv.textContent = data.msg || 'Registration successful. Check your email for the OTP.';
+                // Optional: Redirect to the OTP verification page
+                // setTimeout(() => window.location.href = 'verify-otp.html', 2000);
+            } else {
+                messageDiv.className = 'error';
+                messageDiv.textContent = data.msg || 'Registration failed. Please try again.';
+            }
+        } catch (error) {
+            messageDiv.className = 'error';
+            messageDiv.textContent = 'Network error or server unavailable.';
+            console.error('Error:', error);
+        }
+    });
+</script>
+
+</body>
+</html>

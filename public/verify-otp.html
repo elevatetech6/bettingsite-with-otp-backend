@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 400px; margin: 0 auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        input[type="email"], input[type="text"] { width: 100%; padding: 10px; margin: 5px 0 15px 0; display: inline-block; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; padding: 14px 20px; margin: 8px 0; border: none; cursor: pointer; width: 100%; }
+        button:hover { opacity: 0.8; }
+        #message { margin-top: 15px; padding: 10px; border-radius: 3px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Verify OTP</h2>
+    <p>Please enter the OTP sent to your email.</p>
+    <div id="message"></div>
+    <form id="otpForm">
+        <label for="email"><b>Email</b></label>
+        <input type="email" placeholder="Enter your registered email" name="email" required>
+
+        <label for="otp"><b>OTP Code</b></label>
+        <input type="text" placeholder="Enter 6-digit OTP" name="otp" required maxlength="6">
+
+        <button type="submit">Verify Account</button>
+    </form>
+    <p>Need to register? <a href="register.html">Register</a></p>
+</div>
+
+<script>
+    document.getElementById('otpForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const messageDiv = document.getElementById('message');
+        messageDiv.textContent = '';
+        messageDiv.className = '';
+
+        const formData = {
+            email: this.email.value,
+            otp: this.otp.value
+        };
+
+        try {
+            // **NOTE:** Replace 'http://localhost:5000' with your actual backend URL if different
+            const response = await fetch('/api/auth/verify-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                messageDiv.className = 'success';
+                messageDiv.textContent = data.msg || 'Verification successful. You are now logged in!';
+                localStorage.setItem('token', data.token); // Save the JWT token
+                // Optional: Redirect to a dashboard or login page
+                // setTimeout(() => window.location.href = 'dashboard.html', 2000);
+            } else {
+                messageDiv.className = 'error';
+                messageDiv.textContent = data.msg || 'OTP verification failed. Invalid or expired code.';
+            }
+        } catch (error) {
+            messageDiv.className = 'error';
+            messageDiv.textContent = 'Network error or server unavailable.';
+            console.error('Error:', error);
+        }
+    });
+</script>
+
+</body>
+</html>
