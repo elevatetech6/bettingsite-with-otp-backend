@@ -65,8 +65,9 @@
             if (response.ok) {
                 messageDiv.className = 'success';
                 messageDiv.textContent = data.msg || 'Registration successful. Check your email for the OTP.';
-                // Optional: Redirect to the OTP verification page
-                // setTimeout(() => window.location.href = 'verify-otp.html', 2000);
+                setTimeout(() => {
+                    window.location.href = 'verify-otp.html';
+                }, 1000);
             } else {
                 messageDiv.className = 'error';
                 messageDiv.textContent = data.msg || 'Registration failed. Please try again.';

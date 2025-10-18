@@ -61,8 +61,10 @@
                 messageDiv.className = 'success';
                 messageDiv.textContent = 'Login successful!';
                 localStorage.setItem('token', data.token); // Save the JWT token
-                // Optional: Redirect to a secure page
-                // setTimeout(() => window.location.href = 'dashboard.html', 2000);
+                setTimeout(() => {
+                    // Redirect to your main application page (e.g., dashboard.html)
+                    window.location.href = 'dashboard.html'; 
+                }, 2000);
             } else {
                 messageDiv.className = 'error';
                 messageDiv.textContent = data.msg || 'Login failed. Invalid credentials or account not verified.';
