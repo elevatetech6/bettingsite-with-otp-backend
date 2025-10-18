@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Betting Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+        h1, h2 { color: #04AA6D; border-bottom: 2px solid #ccc; padding-bottom: 5px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .game-list, .bet-history { margin-top: 20px; }
+        .game-card { background-color: #e9ecef; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 6px; }
+        .game-card h3 { margin-top: 0; color: #007bff; }
+        .odds-container button { background-color: #04AA6D; color: white; border: none; padding: 8px 15px; margin: 5px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .odds-container button:hover { background-color: #038c57; }
+        .bet-form { background-color: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; border-radius: 6px; margin-top: 10px; display: none; }
+        .bet-form label, .bet-form input, .bet-form select { display: block; margin-bottom: 10px; }
+        .bet-form button { background-color: #007bff; margin-top: 10px; }
+        .bet-form button:hover { background-color: #0056b3; }
+        #message, #bet-message { margin: 10px 0; padding: 10px; border-radius: 3px; font-weight: bold; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .bet-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .bet-table th, .bet-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .bet-table th { background-color: #04AA6D; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Betting Dashboard ⚽</h1>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <div id="message"></div>
+    
+    <h2>Active Games</h2>
+    <div class="game-list" id="activeGamesList">
+        <p>Loading games...</p>
+    </div>
+
+    <hr>
+
+    <h2>My Bets</h2>
+    <div class="bet-history" id="myBetsHistory">
+        <p>Loading bet history...</p>
+    </div>
+
+</div>
+
+<script>
+    const API_BASE_URL = '/api'; // Use relative path if running on the same server
+    const token = localStorage.getItem('token');
+    const gamesCache = {}; // To store game details for betting
+
+    // --------------------------------------------------------
+    // UTILITY FUNCTIONS
+    // --------------------------------------------------------
+
+    function checkAuth() {
+        if (!token) {
+            alert('You must be logged in to view the dashboard.');
+            window.location.href = 'login.html';
+            return false;
+        }
+        return true;
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+    }
+
+    function showMessage(id, msg, type) {
+        const div = document.getElementById(id);
+        div.className = type;
+        div.textContent = msg;
+        setTimeout(() => div.textContent = '', 5000);
+    }
+    
+    function formatTime(isoString) {
+        return new Date(isoString).toLocaleString();
+    }
+
+    // --------------------------------------------------------
+    // FETCH DATA FUNCTIONS
+    // --------------------------------------------------------
+
+    async function fetchGames() {
+        if (!checkAuth()) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/games`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const games = await response.json();
+
+            if (response.ok) {
+                displayGames(games);
+                // Cache games for quick access in the betting form
+                games.forEach(game => gamesCache[game._id] = game); 
+            } else {
+                showMessage('message', games.msg || 'Failed to load games.', 'error');
+            }
+        } catch (error) {
+            showMessage('message', 'Network error while fetching games.', 'error');
+            console.error('Fetch Games Error:', error);
+        }
+    }
+    
+    async function fetchMyBets() {
+        if (!checkAuth()) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/bets/me`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const bets = await response.json();
+
+            if (response.ok) {
+                displayMyBets(bets);
+            } else {
+                displayMyBets([]); // Show empty table on failure
+                showMessage('message', bets.msg || 'Failed to load your bets.', 'error');
+            }
+        } catch (error) {
+            displayMyBets([]);
+            showMessage('message', 'Network error while fetching your bets.', 'error');
+            console.error('Fetch Bets Error:', error);
+        }
+    }
+
+    // --------------------------------------------------------
+    // DISPLAY FUNCTIONS
+    // --------------------------------------------------------
+
+    function displayGames(games) {
+        const list = document.getElementById('activeGamesList');
+        list.innerHTML = ''; 
+
+        if (games.length === 0) {
+            list.innerHTML = '<p>No active games available right now.</p>';
+            return;
+        }
+
+        games.forEach(game => {
+            const gameCard = document.createElement('div');
+            gameCard.className = 'game-card';
+            gameCard.innerHTML = `
+                <h3>${game.title}</h3>
+                <p><strong>Start:</strong> ${formatTime(game.startTime)} | <strong>End:</strong> ${formatTime(game.endTime)}</p>
+                <p>${game.description}</p>
+                
+                <div class="odds-container">
+                    <p>Place your bet:</p>
+                    <button data-game-id="${game._id}" data-bet-on="teamA" data-odds="${game.odds.teamA}">Team A (${game.odds.teamA})</button>
+                    <button data-game-id="${game._id}" data-bet-on="draw" data-odds="${game.odds.draw}">Draw (${game.odds.draw})</button>
+                    <button data-game-id="${game._id}" data-bet-on="teamB" data-odds="${game.odds.teamB}">Team B (${game.odds.teamB})</button>
+                </div>
+                <div id="form-container-${game._id}"></div>
+            `;
+            list.appendChild(gameCard);
+        });
+        
+        // Attach event listeners to the odds buttons
+        document.querySelectorAll('.odds-container button').forEach(button => {
+            button.addEventListener('click', handleBetClick);
+        });
+    }
+    
+    function displayMyBets(bets) {
+        const historyDiv = document.getElementById('myBetsHistory');
+        
+        if (bets.length === 0) {
+            historyDiv.innerHTML = '<p>You have not placed any bets yet.</p>';
+            return;
+        }
+
+        let html = '<table class="bet-table"><thead><tr><th>Game</th><th>Bet On</th><th>Amount</th><th>Odds</th><th>Potential Payout</th><th>Status</th></tr></thead><tbody>';
+
+        bets.forEach(bet => {
+            // Check if game data exists (populated by your API)
+            const gameTitle = bet.game ? bet.game.title : 'N/A';
+            
+            // Simple status logic (you would need more server logic for actual win/loss)
+            let status = 'Pending';
+            if (bet.game && bet.game.result) {
+                status = bet.game.result === bet.betOn ? 'WON!' : 'LOST';
+            }
+            
+            // Extract odds used at the time of the bet (assuming you saved them or recalculate)
+            let betOdds = 'N/A';
+            if (bet.game && bet.game.odds && bet.betOn in bet.game.odds) {
+                betOdds = bet.game.odds[bet.betOn];
+            }
+
+            html += `
+                <tr>
+                    <td>${gameTitle}</td>
+                    <td>${bet.betOn.toUpperCase()}</td>
+                    <td>$${bet.betAmount.toFixed(2)}</td>
+                    <td>${betOdds}</td>
+                    <td>$${bet.potentialPayout.toFixed(2)}</td>
+                    <td>${status}</td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table>';
+        historyDiv.innerHTML = html;
+    }
+
+    // --------------------------------------------------------
+    // BETTING LOGIC
+    // --------------------------------------------------------
+
+    function handleBetClick(event) {
+        const gameId = event.target.dataset.gameId;
+        const betOn = event.target.dataset.betOn;
+        const odds = event.target.dataset.odds;
+        const container = document.getElementById(`form-container-${gameId}`);
+        
+        // Clear previous forms and messages
+        document.querySelectorAll('.bet-form').forEach(form => form.style.display = 'none');
+        document.querySelectorAll('#bet-message').forEach(msg => msg.remove());
+        
+        // Show the bet form
+        container.innerHTML = createBetForm(gameId, betOn, odds);
+        const form = document.getElementById(`betForm-${gameId}`);
+        form.style.display = 'block';
+        
+        // Attach submit listener to the new form
+        form.addEventListener('submit', placeBet);
+    }
+
+    function createBetForm(gameId, betOn, odds) {
+        return `
+            <div id="bet-message-${gameId}"></div>
+            <form class="bet-form" id="betForm-${gameId}" data-game-id="${gameId}" data-bet-on="${betOn}" data-odds="${odds}">
+                <h4>Bet on ${betOn.toUpperCase()} (Odds: ${odds})</h4>
+                <label for="betAmount-${gameId}">Bet Amount ($):</label>
+                <input type="number" id="betAmount-${gameId}" name="betAmount" min="1" step="0.01" required>
+                <p>Potential Return (including stake): <span id="payout-${gameId}">0.00</span></p>
+                <button type="submit">Confirm Bet</button>
+            </form>
+        `;
+    }
+    
+    function placeBet(event) {
+        event.preventDefault();
+        
+        const form = event.target;
+        const gameId = form.dataset.gameId;
+        const betOn = form.dataset.betOn;
+        const odds = parseFloat(form.dataset.odds);
+        const betAmount = parseFloat(form.betAmount.value);
+        
+        const messageId = `bet-message-${gameId}`;
+        const messageDiv = document.getElementById(messageId);
+        
+        if (isNaN(betAmount) || betAmount <= 0) {
+            showMessage(messageId, 'Please enter a valid bet amount.', 'error');
+            return;
+        }
+
+        const formData = {
+            gameId,
+            betAmount,
+            betOn
+        };
+        
+        fetch(`${API_BASE_URL}/bets`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data._id) {
+                showMessage(messageId, `Bet placed successfully! Potential Payout: $${(betAmount * odds).toFixed(2)}`, 'success');
+                // Hide form after success
+                form.style.display = 'none'; 
+                // Refresh my bets history
+                fetchMyBets();
+            } else {
+                showMessage(messageId, data.msg || 'Failed to place bet.', 'error');
+            }
+        })
+        .catch(err => {
+            showMessage(messageId, 'Network error. Could not place bet.', 'error');
+            console.error('Place Bet Error:', err);
+        });
+    }
+
+    // --------------------------------------------------------
+    // INITIALIZATION
+    // --------------------------------------------------------
+
+    // Run when the page loads
+    window.onload = function() {
+        if (checkAuth()) {
+            fetchGames();
+            fetchMyBets();
+        }
+    };
+
+</script>
+
+</body>
+</html>
